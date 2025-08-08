@@ -1,54 +1,125 @@
 import SwiftUI
 import UIKit
 
-class MainCollectionViewController: UIViewController {
-    private var collectionView: UICollectionView!
+class MainScrollViewController: UIViewController {
+    private var scrollView: UIScrollView!
+    private var containerView: UIView!
+    private var elementViews: [UIView] = []
+    private let elementHeight: CGFloat = 125
+    private let elementSpacing: CGFloat = 10
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupCollectionView()
+        setupScrollView()
+        createElements()
     }
     
-    private func setupCollectionView() {
-        let layout = UICollectionViewFlowLayout()
-        layout.scrollDirection = .vertical
-        layout.minimumLineSpacing = 10
-        layout.minimumInteritemSpacing = 10
-        layout.sectionInset = UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+    private func setupScrollView() {
+        scrollView = UIScrollView()
+        scrollView.backgroundColor = .systemBackground
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scrollView)
         
-        collectionView = UICollectionView(frame: view.bounds, collectionViewLayout: layout)
-        collectionView.backgroundColor = .systemBackground
-        collectionView.delegate = self
-        collectionView.dataSource = self
-        collectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "Cell")
+        containerView = UIView()
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(containerView)
         
-        view.addSubview(collectionView)
-    }
-}
-
-extension MainCollectionViewController: UICollectionViewDataSource {
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return 50
+        NSLayoutConstraint.activate([
+            // Scroll view constraints
+            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            
+            // Container view constraints
+            containerView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            containerView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            containerView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            containerView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            containerView.widthAnchor.constraint(equalTo: scrollView.widthAnchor)
+        ])
     }
     
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "Cell", for: indexPath)
-        cell.backgroundColor = .systemBlue
-        cell.layer.cornerRadius = 8
-        return cell
+    private func createElements() {
+        var previousElement: UIView?
+        
+        for i in 0..<50 {
+            let elementContainer = createElementView(index: i)
+            containerView.addSubview(elementContainer)
+            elementViews.append(elementContainer)
+            
+            elementContainer.translatesAutoresizingMaskIntoConstraints = false
+            
+            NSLayoutConstraint.activate([
+                elementContainer.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
+                elementContainer.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
+                elementContainer.heightAnchor.constraint(equalToConstant: elementHeight)
+            ])
+            
+            if let previous = previousElement {
+                // Position below the previous element
+                elementContainer.topAnchor.constraint(equalTo: previous.bottomAnchor, constant: elementSpacing).isActive = true
+            } else {
+                // First element - position at top with margin
+                elementContainer.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 20).isActive = true
+            }
+            
+            previousElement = elementContainer
+        }
+        
+        // Constrain the last element to the bottom of the container
+        if let lastElement = elementViews.last {
+            lastElement.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -20).isActive = true
+        }
     }
-}
-
-extension MainCollectionViewController: UICollectionViewDelegate {
-    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        guard let cell = collectionView.cellForItem(at: indexPath) else { return }
+    
+    private func createElementView(index: Int) -> UIView {
+        let container = UIView()
+        
+        let circleView = UIView()
+        circleView.backgroundColor = .systemBlue
+        circleView.layer.cornerRadius = 50
+        circleView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(circleView)
+        
+        let label = UILabel()
+        label.text = "Test \(index + 1)"
+        label.textAlignment = .center
+        label.font = .systemFont(ofSize: 14)
+        label.textColor = .label
+        label.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(label)
+        
+        // Add tap gesture
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(elementTapped(_:)))
+        container.addGestureRecognizer(tapGesture)
+        container.tag = index
+        
+        NSLayoutConstraint.activate([
+            // Circle constraints - centered horizontally in the row
+            circleView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            circleView.topAnchor.constraint(equalTo: container.topAnchor),
+            circleView.widthAnchor.constraint(equalToConstant: 100),
+            circleView.heightAnchor.constraint(equalToConstant: 100),
+            
+            // Label constraints
+            label.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            label.topAnchor.constraint(equalTo: circleView.bottomAnchor, constant: 0),
+            label.widthAnchor.constraint(equalTo: container.widthAnchor)
+        ])
+        
+        return container
+    }
+    
+    @objc private func elementTapped(_ gesture: UITapGestureRecognizer) {
+        guard let tappedView = gesture.view else { return }
         
         let detailVC = DetailViewController()
         
         if #available(iOS 18.0, *) {
             detailVC.preferredTransition = .zoom { context in
-                return cell
+                // Return the tapped view for better zoom transition
+                return tappedView
             }
         }
         
@@ -56,16 +127,10 @@ extension MainCollectionViewController: UICollectionViewDelegate {
     }
 }
 
-extension MainCollectionViewController: UICollectionViewDelegateFlowLayout {
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        return CGSize(width: 75, height: 100)
-    }
-} 
-
 struct UIViewControllerWrapper: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> MainCollectionViewController {
-        MainCollectionViewController()
+    func makeUIViewController(context: Context) -> MainScrollViewController {
+        MainScrollViewController()
     }
 
-    func updateUIViewController(_ uiViewController: MainCollectionViewController, context: Context) { }
+    func updateUIViewController(_ uiViewController: MainScrollViewController, context: Context) { }
 } 
